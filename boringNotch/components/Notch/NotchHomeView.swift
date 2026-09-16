@@ -441,18 +441,8 @@ struct NotchHomeView: View {
 
     private var mainContent: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: (shouldShowCamera && Defaults[.showCalendar]) ? 10 : 15) {
+            HStack(alignment: .top, spacing: 15) {
                 MusicPlayerView(albumArtNamespace: albumArtNamespace)
-
-                if Defaults[.showCalendar] {
-                    CalendarView()
-                        .frame(width: shouldShowCamera ? 170 : 215)
-                        .onHover { isHovering in
-                            vm.isHoveringCalendar = isHovering
-                        }
-                        .environmentObject(vm)
-                        .transition(.opacity)
-                }
 
                 if shouldShowCamera {
                     CameraPreviewView(webcamManager: webcamManager)
