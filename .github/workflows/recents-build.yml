@@ -32,7 +32,7 @@ jobs:
           APP=$(find .dd -name 'boringNotch.app' -type d | head -1)
           echo "Found $APP"
           ditto -c -k --sequesterRsrc --keepParent "$APP" boringNotch-recents.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: boringNotch-recents
           path: boringNotch-recents.zip
