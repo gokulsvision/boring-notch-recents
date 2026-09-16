@@ -464,9 +464,14 @@ struct NotchHomeView: View {
             }
 
             if Defaults[.showRecentFiles] {
-                RecentsStripView()
-                    .frame(height: 64)
-                    .opacity(vm.notchState == .closed ? 0 : 1)
+                VStack(spacing: 8) {
+                    Rectangle()
+                        .fill(Color.white.opacity(0.08))
+                        .frame(height: 1)
+                    RecentsStripView()
+                        .frame(height: 70)
+                }
+                .opacity(vm.notchState == .closed ? 0 : 1)
             }
         }
         .transition(.asymmetric(insertion: .opacity.combined(with: .move(edge: .top)), removal: .opacity))

@@ -182,6 +182,7 @@ struct CalendarView: View {
     @EnvironmentObject var vm: BoringViewModel
     @ObservedObject private var calendarManager = CalendarManager.shared
     @State private var selectedDate = Date()
+    var compact: Bool = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -224,7 +225,7 @@ struct CalendarView: View {
             }
         }
         .listRowBackground(Color.clear)
-        .frame(height: 120)
+        .frame(maxWidth: .infinity, maxHeight: compact ? 120 : .infinity)
         .onChange(of: selectedDate) {
             Task {
                 await calendarManager.updateCurrentDate(selectedDate)

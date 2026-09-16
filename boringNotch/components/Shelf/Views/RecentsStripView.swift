@@ -2,7 +2,7 @@
 //  RecentsStripView.swift
 //  boringNotch
 //
-//  Compact last-N recents row for the open notch (home + shelf).
+//  Last-N recents row styled like the rest of the open notch.
 //
 
 import AppKit
@@ -12,7 +12,6 @@ import SwiftUI
 struct RecentsStripView: View {
     @ObservedObject private var recents = RecentsMonitor.shared
     var excludingPaths: Set<String> = []
-    var wrappingScroll: Bool = true
 
     private var visible: [RecentFile] {
         recents.files.filter { !excludingPaths.contains($0.url.standardizedFileURL.path) }
@@ -22,33 +21,28 @@ struct RecentsStripView: View {
         Group {
             if visible.isEmpty {
                 HStack(spacing: 8) {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .foregroundStyle(.gray)
-                    Text("No recent files yet")
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(.gray)
+                    Image(systemName: "clock")
+                        .font(.caption)
+                        .foregroundColor(Color(white: 0.65))
+                    Text("No recent files")
+                        .font(.caption)
+                        .foregroundColor(Color(white: 0.65))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if wrappingScroll {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    tiles
-                }
             } else {
-                tiles
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(visible) { file in
+                            RecentFileTile(file: file)
+                        }
+                    }
+                }
+                .scrollIndicators(.never)
             }
         }
         .onAppear {
             RecentsMonitor.shared.start()
         }
-    }
-
-    private var tiles: some View {
-        HStack(spacing: 8) {
-            ForEach(visible) { file in
-                RecentFileTile(file: file)
-            }
-        }
-        .padding(.horizontal, 2)
     }
 }
 
@@ -58,25 +52,30 @@ private struct RecentFileTile: View {
     @State private var hovering = false
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 6) {
             Image(nsImage: thumbnail ?? NSWorkspace.shared.icon(forFile: file.url.path))
                 .resizable()
                 .aspectRatio(contentMode: .fill)
-                .frame(width: 40, height: 40)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .shadow(color: .black.opacity(0.2), radius: hovering ? 4 : 2, y: 1)
+                .frame(width: 44, height: 44)
+                .clipShape(
+                    RoundedRectangle(
+                        cornerRadius: MusicPlayerImageSizes.cornerRadiusInset.opened,
+                        style: .continuous
+                    )
+                )
 
             Text(file.name)
-                .font(.system(size: 9, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.9))
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(hovering ? .white : Color(white: 0.65))
                 .lineLimit(1)
                 .truncationMode(.middle)
-                .frame(width: 56)
+                .frame(width: 64)
         }
         .padding(.vertical, 4)
-        .padding(.horizontal, 2)
-        .scaleEffect(hovering ? 1.06 : 1)
-        .animation(.easeOut(duration: 0.12), value: hovering)
+        .padding(.horizontal, 4)
+        .background(hovering ? Color.white.opacity(0.08) : Color.clear)
+        .cornerRadius(8)
         .onHover { hovering = $0 }
         .help(file.url.path)
         .onTapGesture {
@@ -109,11 +108,11 @@ private struct RecentFileTile: View {
         guard imageExts.contains(ext), let image = NSImage(contentsOf: url) else {
             return icon
         }
-        let size = NSSize(width: 80, height: 80)
+        let size = NSSize(width: 88, height: 88)
         let thumb = NSImage(size: size)
         thumb.lockFocus()
         NSGraphicsContext.current?.imageInterpolation = .high
-        let ratio = min(size.width / image.size.width, size.height / image.size.height)
+        let ratio = min(size.width / max(image.size.width, 1), size.height / max(image.size.height, 1))
         let drawSize = NSSize(width: image.size.width * ratio, height: image.size.height * ratio)
         let origin = NSPoint(x: (size.width - drawSize.width) / 2, y: (size.height - drawSize.height) / 2)
         image.draw(
