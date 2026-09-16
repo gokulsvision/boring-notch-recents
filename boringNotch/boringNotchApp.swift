@@ -280,7 +280,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        RecentsMonitor.shared.start()
 
         NotificationCenter.default.addObserver(
             self,
@@ -422,6 +421,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         setupDragDetectors()
+        RecentsMonitor.shared.start()
 
         if coordinator.firstLaunch {
             DispatchQueue.main.async {

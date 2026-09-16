@@ -30,29 +30,31 @@ final class RecentsMonitor: ObservableObject {
     private var debounceTask: Task<Void, Never>?
     private var started = false
 
-    private let skipExtensions: Set<String> = [
-        "crdownload", "download", "part", "tmp", "temp", "incomplete",
-        "filepart", "aria2", "dsstore",
-    ]
-
     private init() {}
 
     func start() {
-        guard !started else {
-            refresh()
-            return
+        if !started {
+            started = true
+            startWatching()
         }
-        started = true
         refresh()
-        startWatching()
     }
 
     func refresh() {
+        Task { await refreshAsync() }
+    }
+
+    private func refreshAsync() async {
         guard Defaults[.showRecentFiles] else {
             if !files.isEmpty { files = [] }
             return
         }
-        files = scan(limit: Defaults[.recentFilesLimit])
+        let limit = Defaults[.recentFilesLimit]
+        let folders = watchFolders()
+        let scanned = await Task.detached(priority: .utility) {
+            RecentsMonitor.scan(folders: folders, limit: limit)
+        }.value
+        files = scanned
     }
 
     func watchFolders() -> [URL] {
@@ -79,18 +81,24 @@ final class RecentsMonitor: ObservableObject {
         return pictures?.appendingPathComponent("Screenshots", isDirectory: true)
     }
 
-    private func scan(limit: Int) -> [RecentFile] {
+    nonisolated private static let skipExtensions: Set<String> = [
+        "crdownload", "download", "part", "tmp", "temp", "incomplete",
+        "filepart", "aria2", "dsstore",
+    ]
+
+    nonisolated static func scan(folders: [URL], limit: Int) -> [RecentFile] {
         let fm = FileManager.default
         var seen = Set<String>()
         var collected: [RecentFile] = []
 
-        for folder in watchFolders() {
+        for folder in folders {
             let contents = (try? fm.contentsOfDirectory(
                 at: folder,
                 includingPropertiesForKeys: [
                     .isDirectoryKey, .isHiddenKey, .isAliasFileKey,
                     .creationDateKey, .contentModificationDateKey,
                     .addedToDirectoryDateKey, .fileSizeKey,
+                    .ubiquitousItemDownloadingStatusKey,
                 ],
                 options: [.skipsHiddenFiles]
             )) ?? []
@@ -109,14 +117,16 @@ final class RecentsMonitor: ObservableObject {
         return Array(collected.prefix(max(limit, 1)))
     }
 
-    private func shouldInclude(_ url: URL) -> Bool {
+    nonisolated private static func shouldInclude(_ url: URL) -> Bool {
         let values = try? url.resourceValues(forKeys: [
             .isDirectoryKey, .isHiddenKey, .isAliasFileKey, .fileSizeKey,
+            .ubiquitousItemDownloadingStatusKey,
         ])
         if values?.isDirectory == true { return false }
         if values?.isHidden == true { return false }
         if values?.isAliasFile == true { return false }
         if (values?.fileSize ?? 0) == 0 { return false }
+        if values?.ubiquitousItemDownloadingStatus == .notDownloaded { return false }
 
         let ext = url.pathExtension.lowercased()
         if skipExtensions.contains(ext) { return false }
@@ -127,7 +137,7 @@ final class RecentsMonitor: ObservableObject {
         return true
     }
 
-    private func recencyDate(for url: URL) -> Date {
+    nonisolated private static func recencyDate(for url: URL) -> Date {
         let values = try? url.resourceValues(forKeys: [
             .addedToDirectoryDateKey, .creationDateKey, .contentModificationDateKey,
         ])
