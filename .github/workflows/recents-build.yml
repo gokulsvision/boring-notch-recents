@@ -1,0 +1,38 @@
+name: Build recents notch
+
+on:
+  push:
+    branches:
+      - recents
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Boring Notch with recents
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Release
+        run: |
+          xcodebuild \
+            -project boringNotch.xcodeproj \
+            -scheme boringNotch \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath .dd \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_ALLOWED=YES \
+            build
+      - name: Package app
+        run: |
+          APP=$(find .dd -name 'boringNotch.app' -type d | head -1)
+          echo "Found $APP"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" boringNotch-recents.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: boringNotch-recents
+          path: boringNotch-recents.zip
