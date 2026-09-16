@@ -82,6 +82,48 @@ extension EventModel {
 
     var isMeeting: Bool { !participants.isEmpty }
 
+    /// Zoom / Meet / Teams / Webex (and similar) link, if the event has one.
+    /// Prefer this over opening Calendar.app.
+    var meetingURL: URL? {
+        if let url, Self.isMeetingLink(url) { return url }
+        for text in [location, notes].compactMap({ $0 }) {
+            if let found = Self.firstMeetingURL(in: text) { return found }
+        }
+        return nil
+    }
+
+    private static let meetingHosts = [
+        "zoom.us", "zoom.com",
+        "meet.google.com",
+        "teams.microsoft.com", "teams.live.com",
+        "webex.com",
+        "gotomeeting.com", "goto.com",
+        "meet.jit.si",
+        "chime.aws",
+        "whereby.com",
+        "around.co",
+        "facetime.apple.com",
+    ]
+
+    private static func isMeetingLink(_ url: URL) -> Bool {
+        let scheme = url.scheme?.lowercased() ?? ""
+        if ["zoommtg", "msteams", "facetime", "slack"].contains(scheme) { return true }
+        guard scheme == "http" || scheme == "https" else { return false }
+        let host = url.host?.lowercased() ?? ""
+        return meetingHosts.contains { host == $0 || host.hasSuffix(".\($0)") }
+    }
+
+    private static func firstMeetingURL(in text: String) -> URL? {
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
+            return nil
+        }
+        let range = NSRange(text.startIndex..., in: text)
+        for match in detector.matches(in: text, options: [], range: range) {
+            if let url = match.url, isMeetingLink(url) { return url }
+        }
+        return nil
+    }
+
     func calendarAppURL() -> URL? {
 
         guard let id = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {

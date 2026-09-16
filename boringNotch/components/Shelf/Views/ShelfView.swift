@@ -15,7 +15,8 @@ struct ShelfView: View {
     var body: some View {
         CalendarView(compact: false)
             .environmentObject(vm)
-            .padding(.top, 4)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .padding(.top, 2)
             .onAppear {
                 Task {
                     await CalendarManager.shared.checkCalendarAuthorization()

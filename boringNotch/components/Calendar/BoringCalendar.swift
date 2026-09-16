@@ -221,11 +221,11 @@ struct CalendarView: View {
                 EmptyEventsView(selectedDate: selectedDate)
                 Spacer(minLength: 0)
             } else {
-                EventListView(events: calendarManager.events)
+                EventListView(events: calendarManager.events, fillsHeight: !compact)
             }
         }
         .listRowBackground(Color.clear)
-        .frame(maxWidth: .infinity, maxHeight: compact ? 120 : .infinity)
+        .frame(maxWidth: .infinity, maxHeight: compact ? 120 : .infinity, alignment: .top)
         .onChange(of: selectedDate) {
             Task {
                 await calendarManager.updateCurrentDate(selectedDate)
@@ -268,6 +268,7 @@ struct EventListView: View {
     @Environment(\.openURL) private var openURL
     @ObservedObject private var calendarManager = CalendarManager.shared
     let events: [EventModel]
+    var fillsHeight: Bool = false
     @Default(.autoScrollToNextEvent) private var autoScrollToNextEvent
     @Default(.showFullEventTitles) private var showFullEventTitles
 
@@ -313,16 +314,27 @@ struct EventListView: View {
         ScrollViewReader { proxy in
             List {
                 ForEach(filteredEvents) { event in
-                    Button(action: {
-                        if let url = event.calendarAppURL() {
-                            openURL(url)
-                        }
-                    }) {
-                        eventRow(event)
-                    }
+                    eventRow(event)
                     .id(event.id)
                     .padding(.leading, -5)
-                    .buttonStyle(PlainButtonStyle())
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if let meeting = event.meetingURL {
+                            NSWorkspace.shared.open(meeting)
+                        }
+                    }
+                    .contextMenu {
+                        if let meeting = event.meetingURL {
+                            Button("Join meeting") {
+                                NSWorkspace.shared.open(meeting)
+                            }
+                        }
+                        if let calendarURL = event.calendarAppURL() {
+                            Button("Open in Calendar") {
+                                openURL(calendarURL)
+                            }
+                        }
+                    }
                     .listRowSeparator(.automatic)
                     .listRowSeparatorTint(.gray.opacity(0.2))
                     .listRowBackground(Color.clear)
@@ -332,6 +344,7 @@ struct EventListView: View {
             .scrollIndicators(.never)
             .scrollContentBackground(.hidden)
             .background(Color.clear)
+            .frame(maxHeight: fillsHeight ? .infinity : nil)
             .onAppear {
                 scrollToRelevantEvent(proxy: proxy)
             }
@@ -339,7 +352,9 @@ struct EventListView: View {
                 scrollToRelevantEvent(proxy: proxy)
             }
         }
-        Spacer(minLength: 0)
+        if !fillsHeight {
+            Spacer(minLength: 0)
+        }
     }
 
     private func eventRow(_ event: EventModel) -> some View {
@@ -410,7 +425,7 @@ struct EventListView: View {
                             .foregroundColor(.white)
                             .lineLimit(showFullEventTitles ? nil : 2)
 
-                        if let location = event.location, !location.isEmpty {
+                        if let location = event.location, !location.isEmpty, event.meetingURL == nil || !location.contains("://") {
                             Text(location)
                                 .font(.caption)
                                 .foregroundColor(Color(white: 0.65))
@@ -418,6 +433,24 @@ struct EventListView: View {
                         }
                     }
                     Spacer(minLength: 0)
+                    if let meeting = event.meetingURL {
+                        Button {
+                            NSWorkspace.shared.open(meeting)
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "video.fill")
+                                    .font(.system(size: 9, weight: .semibold))
+                                Text("Join")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.black)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(Capsule().fill(Color.white))
+                        }
+                        .buttonStyle(.plain)
+                    }
                     VStack(alignment: .trailing, spacing: 4) {
                         if event.isAllDay {
                             Text("All-day")
